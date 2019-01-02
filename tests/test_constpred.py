@@ -2,8 +2,12 @@ import logging
 import os
 import tempfile
 import unittest
+from typing import List
+from unicodedata import east_asian_width
 
-from atcodertools.constprediction.constants_prediction import predict_constants
+from bs4 import BeautifulSoup
+
+from atcodertools.constprediction.constants_prediction import predict_constants, predict_modulo
 from tests.utils.gzip_controller import make_html_data_controller
 
 ANSWER_FILE = os.path.join(
@@ -20,6 +24,29 @@ def _to_str(x):
     return str(x)
 
 
+def extract_context(text: str, kw: str, width=10) -> List[str]:
+    pos = 0
+    res = []
+    while True:
+        pos = text.find(kw, pos)
+        if pos == -1:
+            return res
+        start = max(0, pos - width)
+        end = min(pos + width, len(text))
+        res.append(text[start:end])
+        pos += 1
+
+
+def length(s):
+    len_ = 0
+    for i in s:
+        if 'NaH'.count(east_asian_width(i)) > 0:
+            len_ += 1
+        else:
+            len_ += 2
+    return len_
+
+
 class TestConstantsPrediction(unittest.TestCase):
 
     def setUp(self):
@@ -32,6 +59,7 @@ class TestConstantsPrediction(unittest.TestCase):
         self.html_data_controller.remove_dir()
 
     def test_predict_constants(self):
+        # Test prediction with AGC data
         with open(ANSWER_FILE, 'r') as f:
             answers = f.read().split("\n")
 
@@ -51,6 +79,29 @@ class TestConstantsPrediction(unittest.TestCase):
     def _load(self, html_path):
         with open(os.path.join(self.test_dir, html_path), 'r') as f:
             return f.read()
+
+    def test_recall_with_full_data(self):
+        high_recall_kws = ["余", "余り", "あまり", "modulo", "mod", "10^9+7", "1000000007"]
+
+        for html_path in sorted(os.listdir(self.test_dir)):
+            html = self._load(html_path)
+            html = BeautifulSoup(html, "html.parser").get_text()
+            html = html.replace(",", "").replace("{", "").replace("}", "").replace(" ", "")
+            detected_kws = [kw for kw in high_recall_kws if kw in html]
+            if len(detected_kws) > 0:
+                contexts = []
+                for kw in detected_kws:
+                    contexts += extract_context(html, kw)
+
+                mod = predict_modulo(html)
+
+                if mod is None:
+                    print("{:40} {:15} {}".format(
+                        html_path.split(".")[0],
+                        _to_str(mod),
+                        "".join(["\n{0}{1}".format(x, 80 - length(x)) for x in contexts])))
+                    print("=============")
+        pass
 
 
 if __name__ == '__main__':
