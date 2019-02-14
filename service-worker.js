@@ -15,7 +15,7 @@ importScripts("/atcoder-tools/workbox-v3.6.3/workbox-sw.js");
 workbox.setConfig({modulePathPrefix: "/atcoder-tools/workbox-v3.6.3"});
 
 importScripts(
-  "/atcoder-tools/precache-manifest.787a185f7c9e246217d42c431a206b43.js"
+  "/atcoder-tools/precache-manifest.793e05b7147f10a8fbebed9e433ab6c7.js"
 );
 
 workbox.clientsClaim();
