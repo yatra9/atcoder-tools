@@ -231,7 +231,7 @@ def generate_code(result: QualityResult):
         result.constant_set,
         CodeStyleConfig(lang=NIM.name)
     ))
-    result.codes["csharp"] = CSHARP.default_code_generator(CodeGenArgs(
+    result.codes["cs"] = CSHARP.default_code_generator(CodeGenArgs(
         CSHARP_TEMPLATE,
         result_format,
         result.constant_set,
