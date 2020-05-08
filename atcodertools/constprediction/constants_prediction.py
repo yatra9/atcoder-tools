@@ -94,8 +94,8 @@ def predict_yes_no(html: str) -> Tuple[Optional[str], Optional[str]]:
     except (InputFormatDetectionError, SampleDetectionError) as e:
         raise YesNoPredictionFailedError(e)
 
-    yes_kws = ["yes", "possible"]
-    no_kws = ["no", "impossible"]
+    yes_kws = ["yes", "possible", "ok"]
+    no_kws = ["no", "impossible", "ng"]
 
     yes_str = None
     no_str = None

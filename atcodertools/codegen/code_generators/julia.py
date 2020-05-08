@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from atcodertools.codegen.code_style_config import CodeStyleConfig
 from atcodertools.codegen.models.code_gen_args import CodeGenArgs
@@ -8,6 +8,7 @@ from atcodertools.fmtprediction.models.format import Pattern, SingularPattern, P
     Format
 from atcodertools.fmtprediction.models.type import Type
 from atcodertools.fmtprediction.models.variable import Variable
+from atcodertools.client.models.sample import Sample
 
 
 def _loop_header(var: Variable, for_second_index: bool):
@@ -29,19 +30,29 @@ class JuliaCodeGenerator:
 
     def __init__(self,
                  format_: Optional[Format[Variable]],
-                 config: CodeStyleConfig):
+                 config: CodeStyleConfig,
+                 samples: List[Sample] = []):
         self._format = format_
         self._config = config
+        self._samples = samples
 
     def generate_parameters(self) -> Dict[str, Any]:
         if self._format is None:
-            return dict(prediction_success=False, indent=self._indent(1))
+            return dict(prediction_success=False,
+                        indent=self._indent(1),
+                        samples=self._sample_part())
 
         return dict(formal_arguments=self._formal_arguments(),
                     actual_arguments=self._actual_arguments(),
                     input_part=self._input_part(),
                     prediction_success=True,
-                    indent=self._indent(1))
+                    indent=self._indent(1),
+                    samples=self._sample_part())
+
+    def _sample_part(self):
+        def reshape(raw):
+            return '"' + raw.strip().replace('\n', '\\n') + '"'
+        return 'samples = [' + ', '.join(['({}, {})'.format(reshape(s.get_input()), reshape(s.get_output())) for s in self._samples]) + ']'
 
     def _input_part(self):
         lines = []
@@ -181,7 +192,7 @@ class NoPredictionResultGiven(Exception):
 
 def main(args: CodeGenArgs) -> str:
     code_parameters = JuliaCodeGenerator(
-        args.format, args.config).generate_parameters()
+        args.format, args.config, samples=args.samples).generate_parameters()
     return render(
         args.template,
         mod=args.constants.mod,

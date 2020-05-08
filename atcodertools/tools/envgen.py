@@ -74,6 +74,7 @@ def prepare_procedure(atcoder_client: AtCoderClient,
     original_html = atcoder_client.download_problem_content_raw_html(problem)
     constants = predict_constants(original_html)
 
+    samples = []
     if constants.judge_method.judge_type != JudgeType.Interactive:
         # Fetch problem data from the statement
         try:
@@ -89,6 +90,7 @@ def prepare_procedure(atcoder_client: AtCoderClient,
         if len(content.get_samples()) == 0:
             emit_info("No samples.")
         else:
+            samples = content.get_samples()
             os.makedirs(problem_dir_path, exist_ok=True)
             create_examples(content.get_samples(), problem_dir_path,
                             config.etc_config.in_example_format, config.etc_config.out_example_format)
@@ -137,7 +139,8 @@ def prepare_procedure(atcoder_client: AtCoderClient,
             template,
             prediction_result.format,
             constants,
-            config.code_style_config
+            config.code_style_config,
+            samples
         )),
         code_file_path)
     emit_info("Saved code to {}".format(code_file_path))
