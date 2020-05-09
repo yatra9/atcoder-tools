@@ -7,6 +7,7 @@ class Problem:
         self.contest = contest
         self.alphabet = alphabet
         self.problem_id = problem_id
+        self.langs = []
 
     def get_contest(self) -> Contest:
         return self.contest
@@ -23,6 +24,9 @@ class Problem:
             "problem_id": self.problem_id,
             "alphabet": self.alphabet
         }
+
+    def set_langs(self, langs):
+        self.langs = langs
 
     @classmethod
     def from_dict(cls, dic):

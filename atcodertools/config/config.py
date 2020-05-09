@@ -17,10 +17,9 @@ from atcodertools.tools import get_default_config_path
 from atcodertools.tools.utils import with_color
 
 _POST_PROCESS_CONFIG_KEY = "postprocess"
-
 _CODE_STYLE_CONFIG_KEY = "codestyle"
-
 _RUN_CONFIG_KEY = "run"
+_ETC_CONFIG_KEY = "etc"
 
 
 class ProgramArgs:
@@ -33,7 +32,9 @@ class ProgramArgs:
             save_no_session_cache: Optional[bool] = None,
             lang: Optional[str] = None,
             compile_before_testing: Optional[bool] = None,
-            compile_only_when_diff_detected: Optional[bool] = None
+            compile_only_when_diff_detected: Optional[bool] = None,
+            without_problem_directory: Optional[bool] = None,
+            add_execute_permission: Optional[bool] = None
     ):
         self.template = template
         self.workspace = workspace
@@ -43,6 +44,8 @@ class ProgramArgs:
         self.lang = lang
         self.compile_before_testing = compile_before_testing
         self.compile_only_when_diff_detected = compile_only_when_diff_detected
+        self.without_problem_directory = without_problem_directory
+        self.add_execute_permission = add_execute_permission
 
     @classmethod
     def load(cls, program_args: argparse.Namespace):
@@ -55,7 +58,9 @@ class ProgramArgs:
                 "save_no_session_cache",
                 "lang",
                 "compile_before_testing",
-                "compile_only_when_diff_detected"
+                "compile_only_when_diff_detected",
+                "without_problem_directory",
+                "add_execute_permission"
             )})
 
 
@@ -92,7 +97,7 @@ class Config:
             _CODE_STYLE_CONFIG_KEY, {})
 
         postprocess_config_dic = config_dic.get(_POST_PROCESS_CONFIG_KEY, {})
-        etc_config_dic = config_dic.get('etc', {})
+        etc_config_dic = config_dic.get(_ETC_CONFIG_KEY, {})
         run_config_dic = config_dic.get(_RUN_CONFIG_KEY, {})
         code_style_config_dic = {**common_code_style_config_dic}
 
@@ -126,6 +131,10 @@ class Config:
                 run_config_dic = _update_config_dict(run_config_dic,
                                                      lang_specific_config_dic[_RUN_CONFIG_KEY])
 
+            if _ETC_CONFIG_KEY in lang_specific_config_dic:  # e.g. [cpp.etc]
+                etc_config_dic = _update_config_dict(etc_config_dic,
+                                                     lang_specific_config_dic[_ETC_CONFIG_KEY])
+
         if args:
             code_style_config_dic = _update_config_dict(
                 code_style_config_dic,
@@ -139,7 +148,9 @@ class Config:
                     parallel_download=args.parallel,
                     save_no_session_cache=args.save_no_session_cache,
                     compile_before_testing=args.compile_before_testing,
-                    compile_only_when_diff_detected=args.compile_only_when_diff_detected
+                    compile_only_when_diff_detected=args.compile_only_when_diff_detected,
+                    without_problem_directory=args.without_problem_directory,
+                    add_execute_permission=args.add_execute_permission
                 )
             )
 

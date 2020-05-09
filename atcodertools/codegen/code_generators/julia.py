@@ -8,6 +8,7 @@ from atcodertools.fmtprediction.models.format import Pattern, SingularPattern, P
     Format
 from atcodertools.fmtprediction.models.type import Type
 from atcodertools.fmtprediction.models.variable import Variable
+from atcodertools.client.models.problem import Problem
 from atcodertools.client.models.sample import Sample
 
 
@@ -31,15 +32,28 @@ class JuliaCodeGenerator:
     def __init__(self,
                  format_: Optional[Format[Variable]],
                  config: CodeStyleConfig,
+                 problem: Problem,
                  samples: List[Sample] = []):
         self._format = format_
         self._config = config
+        self._problem = problem
         self._samples = samples
 
     def generate_parameters(self) -> Dict[str, Any]:
+        submission_lang_pattern = self._config.lang.submission_lang_pattern
+        langs = list(
+            filter(lambda lang: submission_lang_pattern.match(lang), self._problem.langs))
+        julia_version = ''
+        if len(langs) >= 1:
+            assert len(langs) == 1
+            m = re.search(r'\((.*)\)', langs[0])
+            if m:
+                julia_version = m.group(1)
+
         if self._format is None:
             return dict(prediction_success=False,
                         indent=self._indent(1),
+                        julia_version=julia_version,
                         samples=self._sample_part())
 
         return dict(formal_arguments=self._formal_arguments(),
@@ -47,12 +61,13 @@ class JuliaCodeGenerator:
                     input_part=self._input_part(),
                     prediction_success=True,
                     indent=self._indent(1),
+                    julia_version=julia_version,
                     samples=self._sample_part())
 
     def _sample_part(self):
         def reshape(raw):
             return '"' + raw.strip().replace('\n', '\\n') + '"'
-        return 'samples = [' + ', '.join(['({}, {})'.format(reshape(s.get_input()), reshape(s.get_output())) for s in self._samples]) + ']'
+        return 'const samples = [' + ', '.join(['({}, {})'.format(reshape(s.get_input()), reshape(s.get_output())) for s in self._samples]) + ']'
 
     def _input_part(self):
         lines = []
@@ -192,11 +207,14 @@ class NoPredictionResultGiven(Exception):
 
 def main(args: CodeGenArgs) -> str:
     code_parameters = JuliaCodeGenerator(
-        args.format, args.config, samples=args.samples).generate_parameters()
+        args.format, args.config, problem=args.problem, samples=args.samples).generate_parameters()
     return render(
         args.template,
         mod=args.constants.mod,
         yes_str=args.constants.yes_str,
         no_str=args.constants.no_str,
+        contest_id=args.problem.contest.get_id(),
+        problem_id=args.problem.problem_id,
+        problem_alphabet=args.problem.alphabet,
         **code_parameters
     )

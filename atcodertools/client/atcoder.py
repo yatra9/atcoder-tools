@@ -1,4 +1,4 @@
-import getpass
+# import getpass
 import os
 import re
 import warnings
@@ -54,8 +54,10 @@ class Singleton(type):
 
 
 def default_credential_supplier() -> Tuple[str, str]:
-    username = input('AtCoder username: ')
-    password = getpass.getpass('AtCoder password: ')
+    # username = input('AtCoder username: ')
+    # password = getpass.getpass('AtCoder password: ')
+    username = 'xxxxxxxx'
+    password = 'yyyyyyyy'
     return username, password
 
 
@@ -143,6 +145,25 @@ class AtCoderClient(metaclass=Singleton):
         contest_ids = sorted(contest_ids)
         return [Contest(contest_id) for contest_id in contest_ids]
 
+    def download_contest_languages(self, problem_list: List[Problem]) -> List[str]:
+        contest_cache = {}
+        for problem in problem_list:
+            if problem.contest in contest_cache:
+                soup = contest_cache[problem.contest]
+            else:
+                resp = self._request(problem.contest.get_submit_url())
+                soup = BeautifulSoup(resp.text, "html.parser")
+                contest_cache[problem.contest] = soup
+            task_select_area = soup.find(
+                'select', attrs={"id": "submit-task-selector"})
+            task_number = task_select_area.find(
+                "option", text=re.compile('{} -'.format(problem.get_alphabet()))).get("value")
+            language_select_area = soup.find(
+                'select', attrs={"id": "submit-language-selector-{}".format(task_number)})
+            language_select_area.find_all('option')
+            problem.set_langs(
+                [option.text for option in language_select_area.find_all('option')])
+
     def submit_source_code(self, contest: Contest, problem: Problem, lang: Union[str, Language], source: str) -> Submission:
         if isinstance(lang, str):
             warnings.warn(
@@ -173,6 +194,9 @@ class AtCoderClient(metaclass=Singleton):
             language_field_name: language_number,
             "source_code": source
         }
+
+        logger.info("Do Post")
+
         resp = self._request(
             contest.get_submit_url(),
             data=postdata,

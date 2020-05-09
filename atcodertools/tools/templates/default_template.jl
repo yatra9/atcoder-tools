@@ -1,4 +1,7 @@
-#!/usr/bin/env julia
+#!/usr/bin/env -S JULIA_VERSION={{ julia_version }} julia
+{% if contest_id and problem_id and problem_alphabet %}
+# contest: {{ contest_id }}, problem: {{ problem_id}}, alphabet: {{ problem_alphabet }}
+{% endif %}
 {% if prediction_success %}
 {% endif %}
 {% if mod or yes_str or no_str %}
@@ -45,29 +48,35 @@ if isempty(get(ENV, "ATCODER_LOCAL", ""))
 else
     @eval begin
         {{ samples }}
-        sampleids = isempty(ARGS) ? collect(1:length(samples)) : map(a->parse(Int, a), ARGS)
-        ostdin, ostdout = @static VERSION < v"0.6" ? (STDIN, STDOUT) : (stdin, stdout)
-        rd, wr = first(redirect_stdout()), last(redirect_stdin())
-        try
-            for sampleid in sampleids
-                input, output = samples[sampleid]
-                print(ostdout, "Testing sample #$(sampleid)..."); flush(ostdout)
-                println(wr, input)
-                println(wr, "\0")
-                println()
-                t = @elapsed main()
-                result = strip(String(readavailable(rd)))
-                if result == output
-                    println(ostdout, "OK ($t sec).")
-                else
-                    println(ostdout, "ERROR ($t sec)")
-                    println(ostdout, "== correct amswer ==\n$output")
-                    println(ostdout, "== actual ==\n$result\n")
-                end
+        function test(sampleids...)
+            isempty(sampleids) && return test(collect(1:length(samples))...)
+            ostdin, ostdout = @static VERSION < v"0.6" ? (STDIN, STDOUT) : (stdin, stdout)
+            rd, wr = first(redirect_stdout()), last(redirect_stdin())
+            try
+                map(sampleids) do sampleid
+                    input, output = samples[sampleid]
+                    print(ostdout, "Testing sample #$(sampleid)..."); flush(ostdout)
+                    println(wr, input)
+                    println(wr, "\0")
+                    t = @elapsed main()
+                    println()
+                    result = strip(String(readavailable(rd)))
+                    if result == output
+                        println(ostdout, "OK ($t sec).")
+                    else
+                        println(ostdout, "ERROR ($t sec)")
+                        println(ostdout, "== expected ==\n$output")
+                        println(ostdout, "== actual ==\n$result\n")
+                    end
+                end |> all
+            catch
+                exit(100)
+            finally
+                redirect_stdin(ostdin)
+                redirect_stdout(ostdout)
             end
-        finally
-            redirect_stdin(ostdin)
-            redirect_stdout(ostdout)
         end
+        submit() = test() && run(`atcoder-submit @__FILE__`)
+        !isinteractive() && submit()
     end
 end

@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import argparse
 import os
+import stat
 import shutil
 import sys
 import traceback
@@ -55,10 +56,13 @@ def prepare_procedure(atcoder_client: AtCoderClient,
     lang = config.code_style_config.lang
 
     pid = problem.get_alphabet()
-    problem_dir_path = os.path.join(
+    contest_dir_path = os.path.join(
         workspace_root_path,
-        problem.get_contest().get_id(),
-        pid)
+        problem.get_contest().get_id())
+    if config.etc_config.without_problem_directory:
+        problem_dir_path = contest_dir_path
+    else:
+        problem_dir_path = os.path.join(contest_dir_path, pid)
 
     def emit_error(text):
         logger.error(with_color("Problem {}: {}".format(pid, text), Fore.RED))
@@ -91,14 +95,20 @@ def prepare_procedure(atcoder_client: AtCoderClient,
             emit_info("No samples.")
         else:
             samples = content.get_samples()
-            os.makedirs(problem_dir_path, exist_ok=True)
-            create_examples(content.get_samples(), problem_dir_path,
-                            config.etc_config.in_example_format, config.etc_config.out_example_format)
-            emit_info("Created examples.")
+            if not config.etc_config.without_problem_directory:
+                os.makedirs(problem_dir_path, exist_ok=True)
+                create_examples(content.get_samples(), problem_dir_path,
+                                config.etc_config.in_example_format, config.etc_config.out_example_format)
+                emit_info("Created examples.")
 
-    code_file_path = os.path.join(
-        problem_dir_path,
-        "main.{}".format(lang.extension))
+    if config.etc_config.without_problem_directory:
+        code_file_path = os.path.join(
+            contest_dir_path,
+            "{}.{}".format(pid, lang.extension))
+    else:
+        code_file_path = os.path.join(
+            problem_dir_path,
+            "main.{}".format(lang.extension))
 
     # If there is an existing code, just create backup
     if os.path.exists(code_file_path):
@@ -134,27 +144,34 @@ def prepare_procedure(atcoder_client: AtCoderClient,
     with open(template_code_path, "r") as f:
         template = f.read()
 
+    os.makedirs(os.path.dirname(code_file_path), exist_ok=True)
     create_code(code_generator(
         CodeGenArgs(
             template,
             prediction_result.format,
             constants,
             config.code_style_config,
+            problem,
             samples
         )),
         code_file_path)
+    if config.etc_config.add_execute_permission:
+        st = os.stat(code_file_path)
+        os.chmod(code_file_path,
+                 st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     emit_info("Saved code to {}".format(code_file_path))
 
-    # Save metadata
-    metadata_path = os.path.join(problem_dir_path, "metadata.json")
-    Metadata(problem,
-             os.path.basename(code_file_path),
-             config.etc_config.in_example_format.replace("{}", "*"),
-             config.etc_config.out_example_format.replace("{}", "*"),
-             lang,
-             constants.judge_method,
-             ).save_to(metadata_path)
-    emit_info("Saved metadata to {}".format(metadata_path))
+    if not config.etc_config.without_problem_directory:
+        # Save metadata
+        metadata_path = os.path.join(problem_dir_path, "metadata.json")
+        Metadata(problem,
+                 os.path.basename(code_file_path),
+                 config.etc_config.in_example_format.replace("{}", "*"),
+                 config.etc_config.out_example_format.replace("{}", "*"),
+                 lang,
+                 constants.judge_method,
+                 ).save_to(metadata_path)
+        emit_info("Saved metadata to {}".format(metadata_path))
 
     if config.postprocess_config.exec_cmd_on_problem_dir is not None:
         emit_info(_message_on_execution(problem_dir_path,
@@ -189,6 +206,8 @@ def prepare_contest(atcoder_client: AtCoderClient,
         time.sleep(retry_delay_secs)
         retry_delay_secs = min(retry_delay_secs * 2, retry_max_delay_secs)
         attempt_count += 1
+
+    atcoder_client.download_contest_languages(problem_list)
 
     tasks = [(atcoder_client,
               problem,
@@ -272,6 +291,16 @@ def main(prog, args):
                             "[Default (Secondary)] {}\n".format(
                                 get_default_config_path()))
                         )
+
+    parser.add_argument("--without_problem_directory",
+                        action="store_true",
+                        help="Do not create problem directory (withou manifest, samples)",
+                        default=None)
+
+    parser.add_argument("--add_execute_permission",
+                        action="store_true",
+                        help="add execute permissions to generated files",
+                        default=None)
 
     args = parser.parse_args(args)
 

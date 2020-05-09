@@ -67,15 +67,30 @@ def main(prog, args, credential_supplier=None, use_local_session_cache=True) -> 
                         type=float,
                         default=None)
 
+    parser.add_argument('--program', '-p',
+                        help='submit specified file (instead of Main.*)',
+                        type=str,
+                        default=None)
+
     args = parser.parse_args(args)
 
     metadata_file = os.path.join(args.dir, "metadata.json")
+    metadata = None
     try:
         metadata = Metadata.load_from(metadata_file)
     except IOError:
-        logger.error(
-            "{0} is not found! You need {0} to use this submission functionality.".format(metadata_file))
-        return False
+        if not args.program:
+            logger.error(
+                "{0} is not found! You need {0} to use this submission functionality.".format(metadata_file))
+            return False
+
+    if args.program:
+        try:
+            metadata = Metadata.update_from_source(metadata, args.program)
+        except IOError:
+            logger.error(
+                "{0} is not found!".format(args.program))
+            return False
 
     try:
         client = AtCoderClient()
@@ -103,8 +118,8 @@ def main(prog, args, credential_supplier=None, use_local_session_cache=True) -> 
         submissions = client.download_submission_list(metadata.problem.contest)
         if not args.unlock_safety:
             for submission in submissions:
-                if submission.problem_id == metadata.problem.problem_id:
-                    logger.error(with_color("Cancel submitting because you already sent some code to the problem. Please "
+                if submission.problem_id == metadata.problem.problem_id and submission.result == 'AC':
+                    logger.error(with_color("Cancel submitting because you already got AC to the problem. Please "
                                             "specify -u to send the code. {}".format(
                                                 metadata.problem.contest.get_submissions_url(submission)), Fore.LIGHTRED_EX))
                     return False
