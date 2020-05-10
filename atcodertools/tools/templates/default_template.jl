@@ -63,20 +63,20 @@ else
                     result = strip(String(readavailable(rd)))
                     if result == output
                         println(ostdout, "OK ($t sec).")
+                        true
                     else
                         println(ostdout, "ERROR ($t sec)")
                         println(ostdout, "== expected ==\n$output")
                         println(ostdout, "== actual ==\n$result\n")
+                        false
                     end
                 end |> all
-            catch
-                exit(100)
             finally
                 redirect_stdin(ostdin)
                 redirect_stdout(ostdout)
             end
         end
-        submit() = test() && run(`atcoder-submit @__FILE__`)
+        submit() = test() && (prog = @__FILE__; run(`atcoder-submit $prog`))
         !isinteractive() && submit()
     end
 end
