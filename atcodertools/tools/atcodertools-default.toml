@@ -3,7 +3,7 @@ indent_type = 'space' # 'tab' or 'space'
 indent_width = 4
 
 workspace_dir = '~/atcoder-workspace/'
-lang = 'cpp' # 'cpp' or 'java' (Currently)
+lang = 'julia'
 
 ## template_file is a file path to template code
 #template_file=
@@ -37,3 +37,11 @@ in_example_format="in_{}.txt"
 out_example_format="out_{}.txt"
 compile_before_testing=false
 compile_only_when_diff_detected=false
+
+[julia.codestyle]
+indent_type = 'space'
+indent_width = 2
+
+[julia.etc]
+without_problem_directory=true
+add_execute_permission=true
